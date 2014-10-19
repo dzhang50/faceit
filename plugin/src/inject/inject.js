@@ -245,13 +245,22 @@ function serviceQueue() {
 				success: function(result) {
 					// Update DOM and create upvote/downvote buttons
 					var votes = result.upvotes - result.downvotes;
-					first.obj.insertAdjacentHTML("afterbegin", '<div class="voteWrapper"><span class="voteSpan" id="voteSpan_'+first.fbid+'">'+votes+'</span> <div class="voteButtons"><img src="http://i.imgur.com/j4e90hX.png" id="upvote_'+first.fbid+'" height="16px" width="16px"><img src="http://i.imgur.com/wNUVFnf.png" height="16px" width="16px" id="downvote_'+first.fbid+'"></div></div>');
-					document.getElementById("upvote_"+first.fbid).addEventListener('click',  function(){
-						vote(true, first.fbid, document.getElementById("voteSpan_"+first.fbid));
-					});
-					document.getElementById("downvote_"+first.fbid).addEventListener('click',  function(){
-						vote(false, first.fbid, document.getElementById("voteSpan_"+first.fbid));
-					});
+					
+					if(votes < 0) {
+						console.log("Vote = " +votes+", collapsing post "+first.fbid);
+						var o = document.getElementById("post_"+first.fbid);
+						addClass(o, "troll_hidden");
+						o.innerHTML='<div>This post has been collapsed due to too many downvotes.</div>';
+					}
+					else {
+						first.obj.insertAdjacentHTML("afterbegin", '<div class="voteWrapper"><span class="voteSpan" id="voteSpan_'+first.fbid+'">'+votes+'</span> <div class="voteButtons"><img src="http://i.imgur.com/j4e90hX.png" id="upvote_'+first.fbid+'" height="16px" width="16px"><img src="http://i.imgur.com/wNUVFnf.png" height="16px" width="16px" id="downvote_'+first.fbid+'"></div></div>');
+						document.getElementById("upvote_"+first.fbid).addEventListener('click',  function(){
+							vote(true, first.fbid, document.getElementById("voteSpan_"+first.fbid));
+						});
+						document.getElementById("downvote_"+first.fbid).addEventListener('click',  function(){
+							vote(false, first.fbid, document.getElementById("voteSpan_"+first.fbid));
+						});
+					}
 				},
 				error: function(error) {
 					alert("Error! " + error.message);
@@ -270,6 +279,17 @@ function serviceQueue() {
 					else {
 						first.obj.innerText = +first.obj.innerText - result;
 					}
+					
+					var votes = +first.obj.innerText;
+					
+					setTimeout(function() {
+						if(votes < 0) {
+							console.log("Voting caused newVote = " +votes+", collapsing post "+first.fbid);
+							var o = document.getElementById("post_"+first.fbid);
+							addClass(o, "troll_hidden");
+							o.innerHTML='<div>This post has been collapsed due to too many downvotes.</div>';
+						}
+					}, 800);
 				},
 				error: function(error) {
 					alert("Error! " + error.message);
@@ -307,6 +327,7 @@ function fixStory(o) {
 		
 		//x.insertAdjacentHTML("beforebegin", '<div><a href="#upvote"><img src="http://i.imgur.com/3JHoONf.png" height:></a><a href="#downvote"><img src="http://i.imgur.com/9XIrSFN.png"></a></div>');
 		addClass(x, 'faceit_modified');
+		x.parentNode.id = "post_"+fbid;
 	}
 
 	else {
