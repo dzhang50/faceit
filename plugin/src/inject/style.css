@@ -1,0 +1,26 @@
+
+.troll_hidden {
+	/*display: none;*/
+	color: red;
+	text-align: center;
+}
+
+.faceit_modified {
+}
+
+.voteWrapper {
+	width: 60px;
+	float: left;
+} 
+
+.voteSpan {
+	width: 35px;
+	float: left;
+	padding-top: 10px;
+	font-size: 14px;
+}
+
+.voteButtons {
+	width: 25px;
+	float: left;
+}
