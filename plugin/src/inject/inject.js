@@ -12,25 +12,6 @@ var runat = is_document_ready()?"document-end":"document-start";
 // Initialize Parse
 
 Parse.initialize("UphbSfpS4HvstEadQJN5hYcbi1VrItwX23CNMrv7", "sS3HbYHDu95101xD6Kj0bwepgq32cp1IGVlh3IRh");
-/*
-Parse.Cloud.run('vote', {fbid:"884370988285054@1413693680", isUpvote: true}, {
-  success: function(result) {
-    // result is 'Hello world!'
-	alert("Success! " + result);
-  },
-  error: function(error) {
-	alert("error! " + error.message);
-  }
-});
-*/
-/*
-var TestObject = Parse.Object.extend("TestObject");
-var testObject = new TestObject();
-testObject.save({foo: "bar"}).then(function(object) {
-  alert("yay! it worked");
-});
-*/
-
 
 
 var script_injection_required = true;//chrome/i.test(SCRIPT_TYPE);;
@@ -88,6 +69,8 @@ function url_param(url,param){return unescape(match(url,new RegExp(param+'=([^&]
 function encode_url_params(o){var u="";for(var i in o){if(u!=""){u+="&";}u+=encodeURIComponent(i)+"="+encodeURIComponent(o[i]);}return u;}
 function clickLink(el,bubble) {if(!el){return;}if(typeof bubble!="boolean"){bubble=true;}var e = document.createEvent('MouseEvents');e.initEvent('click',bubble,true,window,0);el.dispatchEvent(e);}
 function mouseEvent(el,event,bubble) {if(!el){return;}if(typeof bubble!="boolean"){bubble=true;}var e = document.createEvent('MouseEvents');e.initEvent(event,bubble,true,window,0);el.dispatchEvent(e);}
+
+function cookie(n) { try { return unescape(document.cookie.match('(^|;)?'+n+'=([^;]*)(;|$)')[2]); } catch(e) { return null; } }
 
 function matchesSelector(o,sel){
 	if (o.matchesSelector){return o.matchesSelector(sel);}
@@ -212,6 +195,28 @@ function findStoriesInContainer(container) {
 	return null;
 }
 
+function username() {
+
+	// First order of business - find out who we are!
+	var userid = "anonymous";
+	// Find out the actual userid numeric value, not the alias
+	var user_num = null;
+	try {
+		user_num = window.Env.user;
+	} catch (e) { }
+	if (!user_num) {
+		try {
+			user_num=cookie('c_user');
+		} catch(e) { }
+	}
+	if (userid=="anonymous" && user_num) { userid=user_num; }
+	if (!userid || userid==0 || userid=="anonymous") { return "anonymous"; }
+		
+	return userid;
+}
+
+userID = username();
+
 function inject_script(code) {
 	if (!document || !document.createElement || !document.documentElement || !document.documentElement.appendChild) { return false; }
 	var s = document.createElement('script');
@@ -255,15 +260,15 @@ function serviceQueue() {
 			setTimeout(serviceQueue, 0);
 		}
 		else if(first.cmd == 'vote') {
-			Parse.Cloud.run('vote', {isUpvote: first.isUpvote, fbid: first.fbid}, {
+			Parse.Cloud.run('vote', {user: userID, isUpvote: first.isUpvote, fbid: first.fbid}, {
 				success: function(result) {
 					// Update upvote value
 					console.log("Updating vote");
 					if(first.isUpvote) {
-						first.obj.innerText = +first.obj.innerText + 1;
+						first.obj.innerText = +first.obj.innerText + result;
 					}
 					else {
-						first.obj.innerText = +first.obj.innerText - 1;
+						first.obj.innerText = +first.obj.innerText - result;
 					}
 				},
 				error: function(error) {
@@ -325,7 +330,7 @@ function fixStory(o) {
 			//tmp.innerHTML = "<div>DAN HELLO WHATS UP</div>"; // + tmp.innerHTML;
 			//tmp[i].insertAdjacentHTML("beforebegin", "<div>DAN HELLO WHATS UP</div>");
 			//tmp[i].insertAdjacentHTML("beforebegin", '<div><a href="#upvote">Upvote</a> · <a href="#downvote">Downvote</a> · -1000</div>');
-			tmp[i].insertAdjacentHTML("beforebegin", '<div>'+fbid+'</div>');
+			//tmp[i].insertAdjacentHTML("beforebegin", '<div>'+userID+' '+fbid+'</div>');
 		}
 	}
 	else {
