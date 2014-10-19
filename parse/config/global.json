@@ -1,0 +1,14 @@
+{
+    "applications": {
+        "FaceIt": {
+            "applicationId": "UphbSfpS4HvstEadQJN5hYcbi1VrItwX23CNMrv7", 
+            "masterKey": "7B6ZkfEepf0dLVtixf64r1d45RlUtYY2wKt6oRWS"
+        }, 
+        "_default": {
+            "link": "FaceIt"
+        }
+    }, 
+    "global": {
+        "parseVersion": "1.3.0"
+    }
+}
