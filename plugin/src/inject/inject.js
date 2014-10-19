@@ -246,7 +246,7 @@ function serviceQueue() {
 					// Update DOM and create upvote/downvote buttons
 					var votes = result.upvotes - result.downvotes;
 					
-					if(votes < 0) {
+					if(votes < -25) {
 						console.log("Vote = " +votes+", collapsing post "+first.fbid);
 						var o = document.getElementById("post_"+first.fbid);
 						addClass(o, "troll_hidden");
@@ -283,7 +283,7 @@ function serviceQueue() {
 					var votes = +first.obj.innerText;
 					
 					setTimeout(function() {
-						if(votes < 0) {
+						if(votes < -25) {
 							console.log("Voting caused newVote = " +votes+", collapsing post "+first.fbid);
 							var o = document.getElementById("post_"+first.fbid);
 							addClass(o, "troll_hidden");
