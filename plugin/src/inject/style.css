@@ -1,8 +1,16 @@
 
-.troll_hidden {
-	/*display: none;
-	color: red;*/
+.hidden {
+	display: none;
+	color: red;
 	text-align: center;
+}
+
+.notif {
+	text-align: center;
+}
+
+.extraPadding {
+	padding-top: 10px;
 }
 
 .faceit_modified {

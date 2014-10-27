@@ -8,6 +8,8 @@ var runat = is_document_ready()?"document-end":"document-start";
 // Main Script
 // -----------
 
+var upvoted = chrome.extension.getURL('img/upvote2.png');
+var downvoted = chrome.extension.getURL('img/downvote2.png');
 
 // Initialize Parse
 
@@ -117,6 +119,7 @@ function getFbid(o,props) {
 								try {
 									if (a&&a.tagName&&a.tagName=="ABBR"){a=a.parentNode;}
 									var href = a.getAttribute('href');
+									//console.log("Checking URL "+href);
 									fbid = match(href,/fbid=(\d+)/);
 									if (fbid && fbid>1000) {
 										return fbid+utime;
@@ -126,6 +129,10 @@ function getFbid(o,props) {
 										return fbid+utime;
 									}
 									fbid = match(href,/permalink\/(\d+)\/?$/);
+									if (fbid && fbid>1000) {
+										return fbid+utime;
+									}
+									fbid = match(href,/video\.php\?v\=(\d+)\/?$/);
 									if (fbid && fbid>1000) {
 										return fbid+utime;
 									}
@@ -184,8 +191,12 @@ function getFbid(o,props) {
 function target(e){ var t=e.target; if (t.nodeType == 3){t=t.parentNode;} return t; }
 
 function is_timeline() { return !!QS(document,'.timelineLayout'); }
-	
-var storySelector = '.uiUnifiedStory,.stream_pagelet,.timelineUnitContainer,.mall_post,div[data-dedupekey],div[id^="mall_post_"]';
+
+
+//var storySelector = '.uiUnifiedStory,.timelineUnitContainer,.mall_post,div[data-dedupekey],div[id^="mall_post_"]';
+//var storySelector = '.uiUnifiedStory,.stream_pagelet,.timelineUnitContainer,.fbTimelineCapsule,.mall_post,div[data-dedupekey],div[id^="mall_post_"]';
+//var storySelector = '.uiUnifiedStory,.timelineUnitContainer,.mall_post,div[data-time],div[data-dedupekey],div[id^="mall_post_"]';
+var storySelector = '.uiUnifiedStory,.userContentWrapper,.mall_post,div[data-time],div[data-dedupekey],div[id^="mall_post_"]';
 
 function findStoriesInContainer(container) {
 	if (container && container.querySelectorAll) {
@@ -236,31 +247,57 @@ function vote(isUpvote, fbid, obj) {
 	//obj.innerText = "Hello";
 	return false;
 }
+
+function togglePost(fbid) {
+	var o = document.getElementById("post_"+fbid);
+	
+	if(hasClass(o, "hidden")) {
+		removeClass(o, "hidden");
+	}
+	else {
+		addClass(o, "hidden");
+	}
+}
+
+function processPost(fbid, upvotes, downvotes) {
+	var votes = upvotes - downvotes;
+	if(votes < -10) {
+		console.log("Vote = " +votes+", collapsing post "+fbid);
+		var o = document.getElementById("post_"+fbid);
+		addClass(o, "hidden");
+		addClass(o, "extraPadding");
+		o.insertAdjacentHTML("beforebegin", '<div id="notif_'+fbid+'" class="notif">This post has been collapsed due to too many downvotes. Click to show the post.</div>');
+		document.getElementById("notif_"+fbid).addEventListener('click',  function(){
+			togglePost(fbid);
+		});
+		//o.innerHTML='<div>This post has been collapsed due to too many downvotes.</div>';
+		return true;
+	}
+	return false;
+}
+
 function serviceQueue() {
 	if(eventQueue.length > 0) {
 		var first = eventQueue.shift(); // FIFO
-		console.log("Servicing event "+first.cmd+", "+first.fbid);
+		//console.log("Servicing event "+first.cmd+", "+first.fbid);
 		if(first.cmd == 'getVotes') {
 			Parse.Cloud.run('getVotes', {fbid: first.fbid}, {
 				success: function(result) {
 					// Update DOM and create upvote/downvote buttons
-					var votes = result.upvotes - result.downvotes;
+					processPost(first.fbid, result.upvotes, result.downvotes);
+					//if(!processPost(first.fbid, result.upvotes, result.downvotes)) {
 					
-					if(votes < -25) {
-						console.log("Vote = " +votes+", collapsing post "+first.fbid);
-						var o = document.getElementById("post_"+first.fbid);
-						addClass(o, "troll_hidden");
-						o.innerHTML='<div>This post has been collapsed due to too many downvotes.</div>';
-					}
-					else {
-						first.obj.insertAdjacentHTML("afterbegin", '<div class="voteWrapper"><span class="voteSpan" id="voteSpan_'+first.fbid+'">'+votes+'</span> <div class="voteButtons"><img src="http://i.imgur.com/j4e90hX.png" id="upvote_'+first.fbid+'" height="16px" width="16px"><img src="http://i.imgur.com/wNUVFnf.png" height="16px" width="16px" id="downvote_'+first.fbid+'"></div></div>');
+						// Make the votes look like Reddit scores, i.e. default=1
+						var votes = result.upvotes - result.downvotes + 1;
+						
+						first.obj.insertAdjacentHTML("afterbegin", '<div class="voteWrapper"><span class="voteSpan" id="voteSpan_'+first.fbid+'">'+votes+'</span> <div class="voteButtons"><img src="'+upvoted+'" id="upvote_'+first.fbid+'" height="16px" width="16px"><img src="'+downvoted+'" height="16px" width="16px" id="downvote_'+first.fbid+'"></div></div>');
 						document.getElementById("upvote_"+first.fbid).addEventListener('click',  function(){
 							vote(true, first.fbid, document.getElementById("voteSpan_"+first.fbid));
 						});
 						document.getElementById("downvote_"+first.fbid).addEventListener('click',  function(){
 							vote(false, first.fbid, document.getElementById("voteSpan_"+first.fbid));
 						});
-					}
+					//}
 				},
 				error: function(error) {
 					alert("Error! " + error.message);
@@ -283,12 +320,12 @@ function serviceQueue() {
 					var votes = +first.obj.innerText;
 					
 					setTimeout(function() {
-						if(votes < -25) {
-							console.log("Voting caused newVote = " +votes+", collapsing post "+first.fbid);
-							var o = document.getElementById("post_"+first.fbid);
-							addClass(o, "troll_hidden");
-							o.innerHTML='<div>This post has been collapsed due to too many downvotes.</div>';
+						if(votes < 0) {
+							processPost(first.fbid, 0, votes);
 						}
+						else {
+							processPost(first.fbid, votes, 0);
+						}	
 					}, 800);
 				},
 				error: function(error) {
@@ -299,20 +336,39 @@ function serviceQueue() {
 		}
 	}
 	else {
-		setTimeout(serviceQueue, 500);
+		setTimeout(serviceQueue, 200);
 	}
 }
-var intervalID = setTimeout(serviceQueue, 100);
+var intervalID = setTimeout(serviceQueue, 200);
 
 
 function fixStory(o) {
-	console.log("Fixing story");
+	//console.log("Fixing story: "+o.className);
+	
+	var tmp = QSA(o, '.userContentWrapper');
+	if(tmp) {
+		if(tmp.length > 1) {
+			for(var i = 0; i < tmp.length; i++) {
+				fixStory(tmp[i]);
+			}
+			return;
+		}
+	}
 	
 	// Collapse story if troll post!
 	//addClass(o, 'troll_hidden');
 	//o.innerHTML = "<div>TROLL POST COLLAPSED</div>";
 	//var x = QS(o, '.userContentWrapper');
-	var fbid = getFbid(o, getData(o,"data-ft"));
+	var props = getData(o,"data-ft");
+							if (!props || !props.sty) {
+								// Try to get the story type from the innerhtml
+								var sty = match(o.innerHTML,/story_type=(\d+)/);
+								if (sty) {
+									props.sty = sty;
+								}
+							}
+							
+	var fbid = getFbid(o, props);
 	
 	//var x = QS(o, '._5pb8');
 	var x = QS(o, '.clearfix');
@@ -322,7 +378,7 @@ function fixStory(o) {
 			return;
 		}
 		var job = {cmd: 'getVotes', fbid: fbid, obj: x};
-		console.log("Pushing job getVotes " + fbid);
+		//console.log("Pushing job getVotes " + fbid);
 		eventQueue.push(job);
 		
 		//x.insertAdjacentHTML("beforebegin", '<div><a href="#upvote"><img src="http://i.imgur.com/3JHoONf.png" height:></a><a href="#downvote"><img src="http://i.imgur.com/9XIrSFN.png"></a></div>');
@@ -346,12 +402,12 @@ function fixStory(o) {
 			
 			//addClass(tmp[i], 'troll_hidden');
 			addClass(tmp[i], 'faceit_modified');
-			console.log(innerText(tmp[i]));
+			//console.log(innerText(tmp[i]));
 			//tmp.innerText += " TESTING 123 ";
 			//tmp.innerHTML = "<div>DAN HELLO WHATS UP</div>"; // + tmp.innerHTML;
 			//tmp[i].insertAdjacentHTML("beforebegin", "<div>DAN HELLO WHATS UP</div>");
 			//tmp[i].insertAdjacentHTML("beforebegin", '<div><a href="#upvote">Upvote</a> · <a href="#downvote">Downvote</a> · -1000</div>');
-			//tmp[i].insertAdjacentHTML("beforebegin", '<div>'+userID+' '+fbid+'</div>');
+			//tmp[i].insertAdjacentHTML("beforebegin", '<div>'+userID+' '+fbid+' '+getStoryProperty(tmp[i],'fbid')+'</div>');
 		}
 	}
 	else {
@@ -375,21 +431,6 @@ function fixStories(o) {
 	}
 }
 
-function onWebNav(details){
-	console.log("History state updated!");
-	//var p = findStoriesInContainer(QS(document,'#home_stream,div[id*="_main_stream"]'));
-	//var p = findStoriesInContainer(QS(details,'#home_stream,div[id*="_main_stream"]'));
-	var p = findStoriesInContainer(QS(document,'#home_stream,#profile_stream_container,#profile_minifeed,#pagelet_group,#pagelet_group_mall,#stream_pagelet,.fbTimelineComposerCapsule,#stream_pagelet div[id*="main_stream"] > div'));
-	//console.log(p);
-	
-	//var test = document.querySelector('#stream_pagelet _main_stream');
-	//console.log(test);
-	//console.log("ugh");
-	
-	fixStories(p);
-}
-
-
 function onDOMContentLoaded(func) {
 	if (is_document_ready()) { func(); }
 	else { bind(window,'DOMContentLoaded',func,false); }
@@ -399,17 +440,8 @@ function onDOMContentLoaded(func) {
 $j(document).ready(function() {
     console.log( "ready!" );
 	
-	//onWebNav(document);
 	domnodeinserted(document);
 });
-
-/*
-$j(document).scroll(function() {
-	
-	onWebNav(null);
-});
-*/
-
 
 // Handle DOM insertions
 var ignoreDomInsertedRegex = /(DOMControl_shadow|highlighterContent|uiContextualLayerPositioner|uiContextualDialogPositioner)/;
@@ -428,27 +460,17 @@ var ignoreMutation = function(o) {
 	return false;
 }
 
-
-/*
-$j(document).bind('DOMNodeInserted', function(o) {
-    console.log( "ready!" );
-	
-	onWebNav(document);
-});
-*/
-
-
-
-
 var domnodeinserted = function (o) {
 	var f,id,selector,el,els;
 	if (ignoreMutation(o)) { return; }
 	var isGroupWall = ($('pagelet_group_mall')!=null);
 	var isNewsfeed =  ($('stream_pagelet')!=null);
+	var isTimeline =  ($('timeline_tab_content')!=null);
 	//var isMiniFeedWall = ((getParentByClass(o,"minifeedwall")!=null) || (getParentByClass(o,"fbProfileStream")!=null) || (o.getElementsByClassName('minifeedwall').length>0));
 
 	//if (is_timeline() || isNewsfeed || isGroupWall) {
-	if (isNewsfeed || isGroupWall) {
+	if (isTimeline || isNewsfeed || isGroupWall) {
+	//if (isNewsfeed || isGroupWall) {
 		//console.log("is timeline or group wall!");
 		// If it's a story itself, process it
 		if ( matchesSelector(o,storySelector)) {
@@ -465,7 +487,7 @@ var domnodeinserted = function (o) {
 };
 
 bind(document,"DOMNodeInserted", function(e) { domnodeinserted(target(e)); });
-							
+	
 /*
 // Needs to be in background.js!!! Content.js permissions issue
 //chrome.webNavigation.onCommitted.addListener(onWebNav);
